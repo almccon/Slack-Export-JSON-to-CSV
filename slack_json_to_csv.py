@@ -10,7 +10,7 @@ def handle_annotated_mention(matchobj):
 
 def handle_mention(matchobj):
     global user
-    print(user[matchobj.group(0)[2:-1]][0])
+    #print(user[matchobj.group(0)[2:-1]][0])
     return "@{}".format(user[matchobj.group(0)[2:-1]][0])
 
 
@@ -25,11 +25,10 @@ def transform_text(text):
 
 jsondir = sys.argv[1]
 userjson = sys.argv[2]
-outcsv_file = sys.argv[3]
+outcsv_file = sys.argv[3].replace('/','')
 
 content_list = []
 userlist  = []
-f = open(outcsv_file, 'w')
 user = {}
 with open(userjson) as user_data:
     userlist = json.load(user_data)
@@ -41,8 +40,10 @@ with open(userjson) as user_data:
                 realname = userdata["name"]
         else:
             realname = userdata["name"]
-        print(realname)
+        #print(realname)
         user[userid] = [realname]
+print(outcsv_file)
+f = open(outcsv_file, 'w')
 csvwriter = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 for content in os.listdir(jsondir):
     content_list.append(content)
@@ -51,11 +52,15 @@ for content in os.listdir(jsondir):
         for item in data:
             if item["type"] == "message" :
                 if item["text"].find("> has joined the channel") == -1:
-                    user_cur = user.get(item.get("user", "Unknown User"), [u'Unknown User'])
-                    print(user_cur)
-                    ts = datetime.utcfromtimestamp(float(item['ts']))
-                    time = ts.strftime("%Y-%m-%d %H:%M:%S")
-                    item["text"] = transform_text(item["text"])
-                    csvwriter.writerow([time.encode('utf-8'),item['text'].encode('utf-8'),user_cur[0].encode('utf-8')])
+                    if "reactions" in item and len(item["reactions"]) > 1:
+                        reaction_count = 0
+                        for reaction in item["reactions"]:
+                            reaction_count += reaction["count"]
+                        user_cur = user.get(item.get("user", "Unknown User"), [u'Unknown User'])
+                        #print(user_cur)
+                        ts = datetime.utcfromtimestamp(float(item['ts']))
+                        time = ts.strftime("%Y-%m-%d %H:%M:%S")
+                        item["text"] = transform_text(item["text"])
+                        csvwriter.writerow([str(reaction_count).zfill(3),jsondir,time.encode('utf-8'),item['text'].encode('utf-8'),user_cur[0].encode('utf-8'),item["reactions"][1]["count"]])
 
 f.close()
